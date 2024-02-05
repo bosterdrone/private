@@ -9,21 +9,21 @@ local Balls = workspace:WaitForChild("Balls", 9e9)
 -- Functions
 
 local function print(...) -- Debug print.
-    if Debug then
-        warn(...)
-    end
+  if Debug then
+    warn(...)
+  end
 end
 
 local function VerifyBall(Ball)
-    return typeof(Ball) == "Instance" and Ball:IsA("BasePart") and Ball:IsDescendantOf(Balls) and Ball:GetAttribute("realBall") == true
+  return typeof(Ball) == "Instance" and Ball:IsA("BasePart") and Ball:IsDescendantOf(Balls) and Ball:GetAttribute("realBall") == true
 end
 
 local function IsTarget()
-    return Player.Character and Player.Character:FindFirstChild("Highlight")
+  return Player.Character and Player.Character:FindFirstChild("Highlight")
 end
 
 local function Parry()
-    Remotes:WaitForChild("ParryButtonPress"):Fire()
+  Remotes:WaitForChild("ParryButtonPress"):Fire()
 end
 
 -- Visual Hitbox
@@ -41,49 +41,48 @@ SphereHitbox.Size = Vector3.new(13, 13, 13)
 
 -- Ball detection and early parry
 Balls.ChildAdded:Connect(function(Ball)
-    if not VerifyBall(Ball) then
-        return
+  if not VerifyBall(Ball) then
+    return
+  end
+
+  print("Ball Spawned:", Ball)
+
+  local OldPosition = Ball.Position
+  local OldTick = tick()
+
+  Ball:GetPropertyChangedSignal("Position"):Connect(function()
+    if IsTarget() then
+      local Distance = (Ball.Position - workspace.CurrentCamera.Focus.Position).Magnitude
+      local Velocity = (OldPosition - Ball.Position).Magnitude
+
+      print("Distance:", Distance, "\nVelocity:", Velocity, "\nTime:", Distance / Velocity)
+
+      if (Distance / Velocity) <= 10 then
+        Parry()
+      end
     end
 
-    print("Ball Spawned:", Ball)
-
-    local OldPosition = Ball.Position
-    local OldTick = tick()
-
-    Ball:GetPropertyChangedSignal("Position"):Connect(function()
-        if IsTarget() then
-            local Distance = (Ball.Position - workspace.CurrentCamera.Focus.Position).Magnitude
-            local Velocity = (OldPosition - Ball.Position).Magnitude
-
-            print("Distance:", Distance, "\nVelocity:", Velocity, "\nTime:", Distance / Velocity)
-
-            if (Distance / Velocity) <= 10 then
-                Parry()
-            end
-        end
-
-        OldPosition = Ball.Position -- Move this line outside the if statement to always update OldPosition
-
-        if (tick() - OldTick >= 1 / 60) then
-            OldTick = tick()
-        end
-    end)
+    if (tick() - OldTick >= 1/60) then
+      OldTick = tick()
+      OldPosition = Ball.Position
+    end
+  end)
 end)
 
 -- Visual Hitbox update coroutine
 coroutine.wrap(function()
-    while true do
-        task.wait()
-        pcall(function()
-            local LocalPlayer = game.Players.LocalPlayer
-            local Balls = workspace:WaitForChild("Balls", 20)
-            local Ball = Balls:FindFirstChildOfClass("Part")
+  while true do
+    task.wait()
+    pcall(function()
+      local LocalPlayer = game.Players.LocalPlayer
+      local Balls = workspace:WaitForChild("Balls", 20)
+      local Ball = Balls:FindFirstChildOfClass("Part") 
 
-            if Ball then
-                local Calculate = Ball.Velocity.Magnitude / 4
-                SphereHitbox.Size = Vector3.new(Calculate, Calculate, Calculate)
-                SphereHitbox.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
-            end
-        end)
-    end
+      if Ball then
+        local Calculate = Ball.Velocity.Magnitude / 4
+        SphereHitbox.Size = Vector3.new(Calculate, Calculate, Calculate)
+        SphereHitbox.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+      end
+    end)
+  end
 end)()
