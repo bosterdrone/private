@@ -48,7 +48,7 @@ Balls.ChildAdded:Connect(function(Ball)
     print("Ball Spawned:", Ball)
 
     Ball.Touched:Connect(function(hit)
-        if hit == SphereHitbox then
+        if hit:IsDescendantOf(Player.Character) then
             Parry()
             -- Optionally, you can add a cooldown here if needed.
         end
