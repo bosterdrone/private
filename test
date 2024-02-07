@@ -1,14 +1,12 @@
-local Debug = false -- Set this to true if you want my debug output.
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local workspace = game:GetService("Workspace")
 
 local Player = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 9e9)
 local Balls = workspace:WaitForChild("Balls", 9e9)
 
--- Functions
-
-local function print(...) -- Debug print.
+local function print(...)
     if Debug then
         warn(...)
     end
@@ -26,49 +24,68 @@ local function Parry()
     Remotes:WaitForChild("ParryButtonPress"):Fire()
 end
 
--- Visual Hitbox
-local SphereHitbox = Instance.new("Part")
-SphereHitbox.Name = "VisualViewPart"
-SphereHitbox.Parent = workspace
-SphereHitbox.Color = Color3.new(0.92549, 0.831373, 1)
-SphereHitbox.Shape = Enum.PartType.Ball
-SphereHitbox.CanCollide = false
-SphereHitbox.Anchored = true
-SphereHitbox.CastShadow = false
-SphereHitbox.Transparency = 0.2
-SphereHitbox.Material = "ForceField"
-SphereHitbox.Size = Vector3.new(13, 13, 13)
-
--- Ball detection and early parry
-Balls.ChildAdded:Connect(function(Ball)
-    if not VerifyBall(Ball) then
+local function CheckForParry()
+    local Character = Player.Character
+    local HumanoidRootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+    if not HumanoidRootPart then
         return
     end
 
-    print("Ball Spawned:", Ball)
+    local Origin = HumanoidRootPart.Position
+    local Direction = HumanoidRootPart.CFrame.LookVector
+    local RaycastParams = RaycastParams.new()
+    RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    RaycastParams.FilterDescendantsInstances = {workspace}
+    local Result = workspace:Raycast(Origin, Direction * 100, RaycastParams)
 
-    Ball.Touched:Connect(function(hit)
-        if hit:IsDescendantOf(Player.Character) then
+    if Result then
+        local Hit = Result.Instance
+        if VerifyBall(Hit) then
             Parry()
-            -- Optionally, you can add a cooldown here if needed.
         end
-    end)
-end)
-
--- Visual Hitbox update coroutine
-coroutine.wrap(function()
-    while true do
-        task.wait()
-        pcall(function()
-            local LocalPlayer = game.Players.LocalPlayer
-            local Balls = workspace:WaitForChild("Balls", 20)
-            local Ball = Balls:FindFirstChildOfClass("Part")
-
-            if Ball then
-                local Calculate = Ball.Velocity.Magnitude / 4
-                SphereHitbox.Size = Vector3.new(Calculate, Calculate, Calculate)
-                SphereHitbox.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
-            end
-        end)
     end
-end)()
+end
+
+local function UpdateBalls()
+    for _, Ball in ipairs(Balls:GetChildren()) do
+        if VerifyBall(Ball) then
+            Ball.Touched:Connect(function(hit)
+                if hit == SphereHitbox then
+                    Parry()
+                end
+            end)
+        end
+    end
+end
+
+local function UpdateVisualHitbox()
+    local Ball = Balls:FindFirstChildOfClass("Part")
+    if Ball then
+        local Calculate = Ball.Velocity.Magnitude / 4
+        SphereHitbox.Size = Vector3.new(Calculate, Calculate, Calculate)
+        SphereHitbox.CFrame = Player.Character.HumanoidRootPart.CFrame
+    end
+end
+
+local function Main()
+    local SphereHitbox = Instance.new("Part")
+    SphereHitbox.Name = "VisualViewPart"
+    SphereHitbox.Parent = workspace
+    SphereHitbox.Color = Color3.new(0.92549, 0.831373, 1)
+    SphereHitbox.Shape = Enum.PartType.Ball
+    SphereHitbox.CanCollide = false
+    SphereHitbox.Anchored = true
+    SphereHitbox.CastShadow = false
+    SphereHitbox.Transparency = 0.2
+    SphereHitbox.Material = "ForceField"
+
+    UpdateBalls()
+
+    while true do
+        CheckForParry()
+        UpdateVisualHitbox()
+        wait()
+    end
+end
+
+Main()
